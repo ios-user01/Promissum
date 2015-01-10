@@ -17,6 +17,11 @@ public class PromiseSource<T> {
     self.warnUnresolvedDeinit = warnUnresolvedDeinit
   }
 
+  internal init(state: State<T>, dispatch: DispatchMethod, warnUnresolvedDeinit: Bool = true) {
+    self.promise = Promise<T>(state: state, dispatch: dispatch)
+    self.warnUnresolvedDeinit = warnUnresolvedDeinit
+  }
+
   deinit {
     if warnUnresolvedDeinit {
       switch promise.state {

@@ -27,7 +27,14 @@ class MultipleErrorTests: XCTestCase {
 
     source.reject(NSError(domain: PromissumErrorDomain, code: 42, userInfo: nil))
 
-    XCTAssertEqual(calls, 2, "Calls should be 2")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    p.finally {
+      XCTAssertEqual(calls, 2, "Calls should be 2")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
   func testValueMap() {
@@ -39,14 +46,22 @@ class MultipleErrorTests: XCTestCase {
     p.catch { _ in
       calls += 1
     }
-    p.mapError { $0.code + 1 }
+    let q = p
+      .mapError { $0.code + 1 }
       .then { _ in
         calls += 1
       }
 
     source.reject(NSError(domain: PromissumErrorDomain, code: 42, userInfo: nil))
 
-    XCTAssertEqual(calls, 2, "Calls should be 2")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    whenBoth(p, q).finally {
+      XCTAssertEqual(calls, 2, "Calls should be 2")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
   func testValueFlatMap() {
@@ -58,14 +73,22 @@ class MultipleErrorTests: XCTestCase {
     p.catch { _ in
       calls += 1
     }
-    p.flatMapError { Promise(value: $0.code + 1) }
+    let q = p
+      .flatMapError { Promise(value: $0.code + 1) }
       .then { _ in
         calls += 1
       }
 
     source.reject(NSError(domain: PromissumErrorDomain, code: 42, userInfo: nil))
 
-    XCTAssert(calls == 2, "Calls should be 2")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    whenBoth(p, q).finally {
+      XCTAssertEqual(calls, 2, "Calls should be 2")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
   func testValueFlatMap2() {
@@ -77,14 +100,22 @@ class MultipleErrorTests: XCTestCase {
     p.catch { _ in
       calls += 1
     }
-    p.flatMapError { Promise(error: NSError(domain: PromissumErrorDomain, code: $0.code + 1, userInfo: nil))  }
+    let q = p
+      .flatMapError { Promise(error: NSError(domain: PromissumErrorDomain, code: $0.code + 1, userInfo: nil))  }
       .catch { _ in
         calls += 1
       }
 
     source.reject(NSError(domain: PromissumErrorDomain, code: 42, userInfo: nil))
 
-    XCTAssert(calls == 2, "Calls should be 2")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    whenBoth(p, q).finally {
+      XCTAssertEqual(calls, 2, "Calls should be 2")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
   func testValueFlatMap3() {
@@ -140,13 +171,21 @@ class MultipleErrorTests: XCTestCase {
     p.finally {
       calls += 1
     }
-    p.map { $0 + 1 }
+    let q = p
+      .map { $0 + 1 }
       .finally {
         calls += 1
       }
 
     source.reject(NSError(domain: PromissumErrorDomain, code: 42, userInfo: nil))
 
-    XCTAssert(calls == 2, "Calls should be 2")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    whenBoth(p, q).finally {
+      XCTAssertEqual(calls, 2, "Calls should be 2")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 }

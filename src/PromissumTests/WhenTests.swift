@@ -20,7 +20,7 @@ class WhenTests: XCTestCase {
     let p1 = source1.promise
     let p2 = source2.promise
 
-    whenBoth(p1, p2)
+    let p = whenBoth(p1, p2)
       .then { (x, y) in
         value = x + y
     }
@@ -28,7 +28,14 @@ class WhenTests: XCTestCase {
     source1.resolve(40)
     source2.resolve(2)
 
-    XCTAssert(value == 42, "Value should be 42")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    p.finally {
+      XCTAssert(value == 42, "Value should be 42")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
   func testBothError() {
@@ -39,7 +46,7 @@ class WhenTests: XCTestCase {
     let p1 = source1.promise
     let p2 = source2.promise
 
-    whenBoth(p1, p2)
+    let p = whenBoth(p1, p2)
       .catch { e in
         error = e.code
       }
@@ -47,7 +54,14 @@ class WhenTests: XCTestCase {
     source1.resolve(40)
     source2.reject(NSError(domain: PromissumErrorDomain, code: 42, userInfo: nil))
 
-    XCTAssert(error == 42, "Error should be 42")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    p.finally {
+      XCTAssert(error == 42, "Error should be 42")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
   func testEitherLeft() {
@@ -58,7 +72,7 @@ class WhenTests: XCTestCase {
     let p1 = source1.promise
     let p2 = source2.promise
 
-    whenEither(p1, p2)
+    let p = whenEither(p1, p2)
       .then { x in
         value = x
       }
@@ -69,7 +83,14 @@ class WhenTests: XCTestCase {
     source1.resolve(1)
     source2.reject(NSError(domain: PromissumErrorDomain, code: 2, userInfo: nil))
 
-    XCTAssert(value == 1, "Value should be 1")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    p.finally {
+      XCTAssert(value == 1, "Value should be 1")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
   func testEitherRight() {
@@ -80,7 +101,7 @@ class WhenTests: XCTestCase {
     let p1 = source1.promise
     let p2 = source2.promise
 
-    whenEither(p1, p2)
+    let p = whenEither(p1, p2)
       .then { x in
         value = x
       }
@@ -91,7 +112,14 @@ class WhenTests: XCTestCase {
     source1.reject(NSError(domain: PromissumErrorDomain, code: 1, userInfo: nil))
     source2.resolve(2)
 
-    XCTAssert(value == 2, "Value should be 2")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    p.finally {
+      XCTAssert(value == 2, "Value should be 2")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
   func testEitherError() {
@@ -102,7 +130,7 @@ class WhenTests: XCTestCase {
     let p1 = source1.promise
     let p2 = source2.promise
 
-    whenEither(p1, p2)
+    let p = whenEither(p1, p2)
       .then { x in
         value = x
       }
@@ -113,6 +141,13 @@ class WhenTests: XCTestCase {
     source1.reject(NSError(domain: PromissumErrorDomain, code: 1, userInfo: nil))
     source2.reject(NSError(domain: PromissumErrorDomain, code: 2, userInfo: nil))
 
-    XCTAssert(value == 2, "Value should be 2")
+    // Check assertions
+    let expectation = expectationWithDescription("Promise didn't finish")
+    p.finally {
+      XCTAssert(value == 2, "Value should be 2")
+      expectation.fulfill()
+    }
+
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 }

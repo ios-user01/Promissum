@@ -12,6 +12,8 @@ public let PromissumErrorDomain = "com.nonstrict.Promissum"
 
 public class Promise<T> {
   private(set) var state = State<T>.Unresolved
+  private(set) var dispatch = DispatchMethod.Unspecified
+
   private var resolvedHandlers: [T -> Void] = []
   private var errorHandlers: [NSError -> Void] = []
 
@@ -26,12 +28,17 @@ public class Promise<T> {
     state = State<T>.Rejected(error)
   }
 
-  public func map<U>(continuation: T -> U) -> Promise<U> {
+  internal init(state: State<T>, dispatch: DispatchMethod) {
+    self.state = state
+    self.dispatch = dispatch
+  }
+
+  public func map<U>(transform: T -> U) -> Promise<U> {
     let source = PromiseSource<U>()
 
     let cont: T -> Void = { val in
-      var transformed = continuation(val)
-      source.resolve(transformed)
+      var transformedValue = transform(val)
+      source.resolve(transformedValue)
     }
 
     addResolvedHandler(cont)
@@ -40,11 +47,11 @@ public class Promise<T> {
     return source.promise
   }
 
-  public func flatMap<U>(continuation: T -> Promise<U>) -> Promise<U> {
+  public func flatMap<U>(transform: T -> Promise<U>) -> Promise<U> {
     let source = PromiseSource<U>()
 
     let cont: T -> Void = { val in
-      var transformedPromise = continuation(val)
+      var transformedPromise = transform(val)
       transformedPromise
         .then(source.resolve)
         .catch(source.reject)
@@ -62,12 +69,12 @@ public class Promise<T> {
     return self
   }
 
-  public func mapError(continuation: NSError -> T) -> Promise<T> {
+  public func mapError(transform: NSError -> T) -> Promise<T> {
     let source = PromiseSource<T>()
 
     let cont: NSError -> Void = { error in
-      var transformed = continuation(error)
-      source.resolve(transformed)
+      var transformedValue = transform(error)
+      source.resolve(transformedValue)
     }
 
     addErrorHandler(cont)
@@ -76,11 +83,11 @@ public class Promise<T> {
     return source.promise
   }
 
-  public func flatMapError(continuation: NSError -> Promise<T>) -> Promise<T> {
+  public func flatMapError(transform: NSError -> Promise<T>) -> Promise<T> {
     let source = PromiseSource<T>()
 
     let cont: NSError -> Void = { error in
-      var transformedPromise = continuation(error)
+      var transformedPromise = transform(error)
       transformedPromise
         .then(source.resolve)
         .catch(source.reject)
@@ -112,10 +119,10 @@ public class Promise<T> {
       // Save handler for later
       resolvedHandlers.append(handler)
 
-    case State<T>.Resolved(let getter):
+    case let State<T>.Resolved(getter):
       // Value is already available, call handler immediately
-      let val = getter()
-      handler(val)
+      let value = getter()
+      callHandlers(value, handlers: [handler])
 
     case State<T>.Rejected:
       break;
@@ -129,9 +136,9 @@ public class Promise<T> {
       // Save handler for later
       errorHandlers.append(handler)
 
-    case State<T>.Rejected(let error):
+    case let State<T>.Rejected(error):
       // Error is already available, call handler immediately
-      handler(error)
+      callHandlers(error, handlers: [handler])
 
     case State<T>.Resolved:
       break;
@@ -140,10 +147,8 @@ public class Promise<T> {
 
   private func executeResolvedHandlers(value: T) {
 
-    // Call all previously scheduled handlers
-    for handler in resolvedHandlers {
-      handler(value)
-    }
+    // Call all previously scheduled handlers on correct queue
+    callHandlers(value, handlers: resolvedHandlers)
 
     // Cleanup
     resolvedHandlers = []
@@ -152,14 +157,33 @@ public class Promise<T> {
 
   private func executeErrorHandlers(error: NSError) {
 
-    // Call all previously scheduled handlers
-    for handler in errorHandlers {
-      handler(error)
-    }
+    // Call all previously scheduled handlers on correct queue
+    callHandlers(error, handlers: errorHandlers)
 
     // Cleanup
     resolvedHandlers = []
     errorHandlers = []
+  }
+
+  private func callHandlers<T>(arg: T, handlers: [T -> Void]) {
+    switch dispatch {
+    case .Unspecified:
+      dispatch_async(dispatch_get_main_queue()) {
+        for handler in handlers {
+          handler(arg)
+        }
+      }
+    case .Synchronous:
+      for handler in handlers {
+        handler(arg)
+      }
+    case let .OnQueue(queue):
+      dispatch_async(queue) {
+        for handler in handlers {
+          handler(arg)
+        }
+      }
+    }
   }
 
   public func value() -> T? {
