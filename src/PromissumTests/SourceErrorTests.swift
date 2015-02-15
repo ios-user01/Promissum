@@ -70,7 +70,7 @@ class SourceErrorTests: XCTestCase {
     waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
-  func testErrorFlatMap() {
+  func testErrorFlatMapValue() {
     var value: Int?
 
     let source = PromiseSource<Int>()
@@ -93,7 +93,7 @@ class SourceErrorTests: XCTestCase {
     waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
-  func testErrorFlatMap2() {
+  func testErrorFlatMapError() {
     var error: NSError?
 
     let source = PromiseSource<Int>()

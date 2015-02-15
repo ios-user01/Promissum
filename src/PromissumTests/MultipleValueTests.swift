@@ -61,7 +61,7 @@ class MultipleValueTests: XCTestCase {
       expectation.fulfill()
     }
 
-    waitForExpectationsWithTimeout(120.03, handler: nil)
+    waitForExpectationsWithTimeout(0.03, handler: nil)
   }
 
   func testValueFlatMap() {

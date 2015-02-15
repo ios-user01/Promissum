@@ -8,13 +8,29 @@
 
 import Foundation
 
+// This Notifier is used to implement Promise.map
+public protocol PromiseNotifier {
+  func registerHandler(handler: () -> Void)
+}
+
 public class PromiseSource<T> {
-  public let promise: Promise<T>
+  typealias ResultHandler = Result<T> -> Void
+  public let promise: Promise<T>!
   public var warnUnresolvedDeinit: Bool
 
-  public init(warnUnresolvedDeinit: Bool = true) {
-    self.promise = Promise<T>()
+  private var handlers: [Result<T> -> Void] = []
+
+  private let originalPromise: PromiseNotifier?
+
+  public convenience init(warnUnresolvedDeinit: Bool = true) {
+    self.init(originalPromise: nil, warnUnresolvedDeinit: warnUnresolvedDeinit)
+  }
+
+  public init(originalPromise: PromiseNotifier?, warnUnresolvedDeinit: Bool) {
+    self.originalPromise = originalPromise
     self.warnUnresolvedDeinit = warnUnresolvedDeinit
+
+    self.promise = Promise(source: self)
   }
 
   internal init(state: State<T>, dispatch: DispatchMethod, warnUnresolvedDeinit: Bool = true) {
@@ -34,10 +50,67 @@ public class PromiseSource<T> {
   }
 
   public func resolve(value: T) {
-    self.promise.tryResolve(value)
+
+    switch promise.state {
+    case State<T>.Unresolved:
+      promise.state = State<T>.Resolved(Box(value))
+
+      executeResultHandlers(.Value(Box(value)), dispatch: promise.dispatch)
+    default:
+      break
+    }
   }
 
   public func reject(error: NSError) {
-    self.promise.tryReject(error)
+
+    switch promise.state {
+    case State<T>.Unresolved:
+      promise.state = State<T>.Rejected(error)
+
+      executeResultHandlers(.Error(error), dispatch: promise.dispatch)
+    default:
+      break
+    }
+  }
+
+  internal func addHander(handler: Result<T> -> Void) {
+    if let originalPromise = originalPromise {
+      originalPromise.registerHandler({
+        self.promise.addOrCallResultHandler(handler)
+      })
+    }
+    else {
+      handlers.append(handler)
+    }
+  }
+
+  private func executeResultHandlers(result: Result<T>, dispatch: DispatchMethod) {
+
+    // Call all previously scheduled handlers
+    callHandlers(result, handlers, dispatch)
+
+    // Cleanup
+    handlers = []
+  }
+}
+
+internal func callHandlers<T>(arg: T, handlers: [T -> Void], dispatch: DispatchMethod) {
+  switch dispatch {
+  case .Unspecified:
+    dispatch_async(dispatch_get_main_queue()) {
+      for handler in handlers {
+        handler(arg)
+      }
+    }
+  case .Synchronous:
+    for handler in handlers {
+      handler(arg)
+    }
+  case let .OnQueue(queue):
+    dispatch_async(queue) {
+      for handler in handlers {
+        handler(arg)
+      }
+    }
   }
 }
