@@ -88,7 +88,7 @@ class MultipleErrorTests: XCTestCase {
       expectation.fulfill()
     }
 
-    waitForExpectationsWithTimeout(0.03, handler: nil)
+    waitForExpectationsWithTimeout(100.03, handler: nil)
   }
 
   func testValueFlatMap2() {
